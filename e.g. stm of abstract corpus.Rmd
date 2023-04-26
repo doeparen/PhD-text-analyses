@@ -1,0 +1,651 @@
+---
+title: "Example code for the structural topic modeling of abstracts"
+output:
+  pdf_document: default
+  html_notebook: default
+editor_options:
+  chunk_output_type: inline
+---
+# Load packages
+```{r}
+library(tidyr)      # General package for the R tidy approach
+library(tidytext)   # Tidy approach to text mining
+library(igraph)     # Package for network analysis and visualisation
+library(stmCorrViz) # Package for hierarchical correlation view of STMs
+```
+
+# Preprocessing the data 
+
+## Reading and preparing data
+815 abstracts for dissertations in sociology, 1980-2019, sorted into five universities
+```{r}
+library(readxl)      # Package for reading in excel data
+setwd("~/Documents/kvantkurs")
+stm_abstracts <- read_excel("stm_abstracts.xlsx", 
+    col_types = c("text", "text", "numeric", 
+        "text", "text"))
+View(stm_abstracts)
+
+stm_abstracts$uni <- as.factor(stm_abstracts$uni)
+print(is.factor(stm_abstracts$uni))
+summary(stm_abstracts$uni)
+summary(stm_abstracts$year)
+
+abstract_fulltext <- stm_abstracts$text
+abstract_shorttext <- substr(abstract_fulltext,1,200)
+```
+
+## Stopwords applied in the pre-processing stage
+```{r}
+library(tm)         # General text mining package
+stmstop <- c("define", "definition", "relate", "related", "relates", "relation", "relations", "relationship", "even", "well", "individual", "individuals", "society", "change", "develop", "changes", "develops", "also", "form", "forms", "way", "ways", "new", "show", "shows", "shown", "seen", "terms", "can", "part", "toward", "different", "differences", "based", "new", "level", "important", "used", "main", "use", "using", "general", "point", "points", "possible", "discuss", "discussed", "make", "non", "consist", "consists", "common", "finally", "argue", "argued", "sense", "especially", "become", "regarding", "mainly", "term", "help", "according", "concern", "concerns", "concerning", "given", "i.e.", "described", "type", "considered", "furthermore", "oriented", "account", "overall", "analyse", "analyze", "analysis", "conclusion", "project", "focus", "aim", "aims", "purpose", "article", "articles", "paper", "papers", "based", "dissertation", "thesis", "study", "studies", "studied", "data", "research", "result", "results", "findings", "examine", "examines", "one", "two", "three", "first", "second", "third", "i", "ii", "iii", "iv", "problem", "problems", "chapter", "chapters", "data", "empirical", "material", "approach", "develop", "develops", "developed", "development", "position", "process", "among", "amongst", "select", "active", "action","within", "particular", "format", "pattern", "often", "number", "inform", "informs", "specific", "perspective", "live",  "life", "people",  "group", "groups", "social", "work", "university", "sociological", "sociology", "sweden", "swedish", "local", "actor", "actors", "frame", "framework", "investigate", "investigates")
+```
+
+## Pre-processing the abstract corpus
+```{r}
+library(lda)        # Package for Latent Dirichlet association
+library(stm)        # Package for structural topic modeling add-on to LDA
+library(ggfortify)  # Package for scaling matrices
+
+processed <- textProcessor(stm_abstracts$text, metadata=stm_abstracts[,-2], customstopwords=stmstop)
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+docs <- out$documents
+vocab <- out$vocab
+meta <- out$meta
+
+plotRemoved(processed$documents, lower.thresh=seq(1,200, by=100))
+```
+
+# Estimate the structural topic model
+
+## Evaluate the optimal number of k (topics), machine-interpretation
+Lets R figure out the best model for you defined by exclusivity and semantic 
+coherence for each K (i.e. # of topics). The searchK() uses a data-driven
+approach to selecting the number of topics. Save plot as pdf file.
+```{r cache=TRUE}
+kResult100 <- searchK(out$documents, out$vocab, K=c(10:40),
+                   data=meta)
+kResult100
+plot(kResult100)
+```
+
+## Evaluate number of k, human-interpretation
+The manyTopics() function that performs model selection across
+separate STMs that each assume different number of topics. It works the same as 
+selectModel(), except user specifies a range of numbers of topics that they want 
+the model fitted for. In this example, models with 20-25 topics. Then, for 
+each number of topics, selectModel() is run multiple times. The output is then 
+processed through a function that takes a pareto dominant run of the model in 
+terms of exclusivity and semantic coherence. If multiple runs are candidates 
+(i.e., none weakly dominates the others), a single model run is randomly chosen 
+from the set of undominated runs. Save plots as pdf files.
+```{r cache=TRUE}
+storage2025 <- manyTopics(out$documents, out$vocab, K=c(20:25),
+                      data=meta, runs=10)
+
+storage2025
+```
+
+# Train structural topic model
+
+Since 20 topics made most sense from both the quantitative and the qualitative assessments, that is what I went with. So, let us train a model with and without the prevalence of the university factor variable (the university where the dissertations were defended) and the year numeric varialbe (the year the dissertations were defended). 
+
+## Train original model
+```{r cache=TRUE}
+stm <- stm(out$documents, out$vocab, K=20, 
+                       max.em.its=75, data=out$meta, init.type="Spectral", 
+                       seed=8458159)
+```
+
+## Train university model
+```{r cache=TRUE}
+stm_uni <- stm(out$documents, out$vocab, K=20, prevalence=~ uni, 
+                       max.em.its=75, data=out$meta, init.type="Spectral", 
+                       seed=8458159)
+```
+
+## Train year model
+```{r cache=TRUE}
+stm_year <- stm(out$documents, out$vocab, K=20, prevalence=~ year, 
+                       max.em.its=75, data=out$meta, init.type="Spectral", 
+                       seed=8458159)
+```
+
+## Train university+year model
+```{r cache=TRUE}
+stm_uniyear <- stm(out$documents, out$vocab, K=20,prevalence=~ uni+s(year), 
+                       max.em.its=75, data=out$meta, init.type="Spectral", 
+                       seed=8458159)
+```
+
+## Test model correlations
+Test correlations in order to see the effect of the year and university coefficients
+in comparison with the original model (trained without the interaction of these meta-data)
+```{r}
+cor(stm$beta[[1]][[1]][1,],stm_uni$beta[[1]][[1]][1,])
+cor(stm$theta[,1],stm_uni$theta[,1])
+cor(stm$beta[[1]][[1]][1,],stm_year$beta[[1]][[1]][1,])
+cor(stm$theta[,1],stm_year$theta[,1])
+cor(stm$beta[[1]][[1]][1,],stm_uniyear$beta[[1]][[1]][1,])
+cor(stm$theta[,1],stm_uniyear$theta[,1])
+```
+
+# Select and fine-tune model of 20 number of K that includes uni and year coefficients
+The function selectModel() assists the user in finding and selecting a model with
+desirable properties in both semantic coherence and exclusivity dimensions (e.g.,
+models with average scores towards the upper right side of the plot). STM will
+compare a number of models side by side and will keep the models that do not 
+converge quickly. 
+```{r cache=TRUE}
+stm_selectuniyear <- selectModel(out$documents, out$vocab, K=20, prevalence=~ uni+s(year),
+                              max.em.its=75, data=meta, runs=20, seed=1234567)
+
+# Plot the selectModels that make the cut along exclusivity and semantic coherence
+# of their topics. Save plot as pdf file.
+plotModels(stm_selectuniyear)
+
+```
+
+```{r}
+# Select one of the models to work with based on the best semantic coherence and 
+# exclusivity values (upper-right corner of plot).
+stm_selectuniyear1 <- stm_selectuniyear$runout[[1]] # Choose model
+```
+
+
+# Inspect the quality of the selected model
+Each model has semantic coherence and exclusivity values associated with each topic. 
+The topicQuality() function plots these values and labels each with its topic number.
+Save plot as pdf file.
+```{r}
+topicQuality(model=stm_selectuniyear1, documents=docs)
+```
+
+## Inspect parameters of the selected model
+```{r}
+plot(stm_selectuniyear1, type="summary", xlim=c(0,.4))
+```
+
+```{r}
+plot(stm_selectuniyear1, type="hist")
+```
+
+```{r}
+plot(stm_selectuniyear1, type="labels", topics=c(3,7,20))
+```
+
+```{r}
+plot(stm_selectuniyear1, type="perspectives", topics=c(10,7))
+```
+
+# Save and load the model
+
+```{r}
+save(stm_selectuniyear1, file = "stm_selectuniyear1.rda")
+```
+
+```{r}
+load("stm_selectuniyear1.rda")
+```
+
+
+
+# Interpret the topics
+
+According to the package vignette, there are a number of ways to interpret the model
+results. These include:
+1. Displaying words associated with topics: labelTopics(), sageLabels()
+2. Displaying documents highly associated with particular topics: findThoughts()
+3. Estimating relationships between metadata and topics: estimateEffect()
+4. Estimating topic correlations: topicCorr()
+
+```{r}
+# labelTopics().
+# Label topics by listing top words for all topics. Save as txt file.
+labelTopicsAllx <- labelTopics(stm_selectuniyear1, c(1:20))
+labelTopicsAllx
+
+# sageLabels().
+# This can be used as a more detailed alternative to labelTopics(). The function displays
+# verbose labels that describe topics and topic-covariate groups in depth.
+SageLabelTopicsAllx <- sageLabels(stm_selectuniyear1)
+SageLabelTopicsAllx
+# Read documents that are highly correlated with the user-specified topics using the 
+# findThoughts() function. 
+```
+
+# Compare the topics
+```{r}
+library(tidyverse)
+library(tidytext)
+library(ggplot2)
+
+td_beta <- tidy(stm_selectuniyear1, matrix = "beta")
+
+top_terms <- td_beta %>%
+  arrange(beta) %>%
+  group_by(topic) %>%
+  top_n(5, beta) %>%
+  arrange(-beta) %>%
+  select(topic, term) %>%
+  summarise(terms = list(term)) %>%
+  mutate(terms = map(terms, paste, collapse = ", ")) %>% 
+  unnest()
+
+td_beta_topics <- td_beta %>%
+    group_by(topic)
+
+td_beta %>%
+    group_by(topic) %>%
+    top_n(12, beta) %>%
+    ungroup() %>%
+    mutate(term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(term, beta, fill = as.factor(topic))) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free_y", ncol = 4) +
+    coord_flip() +
+    scale_x_reordered() +
+    theme_minimal(base_family = "") +
+    labs(x = NULL, y = expression(beta),
+         title = "The 20 topics with their highest word probabilities",
+         subtitle = "Different words are associated with different topics")
+```
+
+## Labels
+```{r}
+topic_labels <- c("Service/Profession","Family/Background","School/Media","Problems/Treatment","Positivist/Risk","Micro/Humanist","Health/Demography","Theory/Knowledge","Space/Culture","Education/Field","Labor/Market","Class/Inequality","History/Economy","Discourse/Politics","Domestic/Narrative","Welfare/Countries","Qualitative","Ethnic/Migration","Gender","Organization/Movement")
+
+topic_labels_number <- c("01 Service/Profession","02 Family/Background","03 School/Media","04 Problems/Treatment","05 Quantitative","06 Micro/Humanist","07 Health/Demography","08 Theory/Knowledge","09 Space/Culture","10 Education/Field","11 Labor/Market","12 Class/Inequality","13 History/Economy","14 Discourse/Politics","15 Domestic/Narrative","16 Welfare/Countries","17 Qualitative","18 Ethnic/Migration","19 Gender","20 Organization/Movement")
+```
+
+
+## Visualize all topics 
+```{r}
+library(tidytext)
+library(ggthemes)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+td_gamma <- tidy(stm_selectuniyear1, matrix = "gamma",
+                 document_names = rownames(stm_abstracts$doc_id))
+
+ggplot(td_gamma, aes(gamma)) +
+  geom_histogram(alpha = 0.8) +
+  scale_y_log10() +
+  labs(title = "Distribution of probabilities for all topics",
+       y = "Number of documents", x = expression(gamma))
+
+ggplot(td_gamma, aes(gamma, fill = as.factor(topic))) +
+  geom_histogram(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ topic, ncol = 4) +
+  scale_y_log10() +
+  labs(title = "Distribution of probability for each topic",
+       y = "Number of documents", x = expression(gamma))
+
+gamma_terms <- td_gamma %>%
+  group_by(topic) %>%
+  summarise(gamma = mean(gamma)) %>%
+  arrange(desc(gamma)) %>%
+  left_join(top_terms, by = "topic") %>%
+  mutate(topic = paste0("Topic ", topic),
+         topic = reorder(topic, gamma))
+
+gamma_terms$topic_label <- c("Theory/Knowledge", "Gender", "History/Economy", "Welfare/Countries", "Organization/Movement", "Discourse/Politics", "Labor/Market", "Service/Profession", "Qualitative", "Micro/Humanist", "Family/Background", "Positivist/Risk", "School/Media", "Space/Culture", "Ethnic/Migration", "Class/Inequality", "Health/Demography", "Domestic/Narrative", "Education/Field", "Problems/Treatment")
+
+gamma_terms$topic_label <- factor(gamma_terms$topic_label, levels = c("Theory/Knowledge", "Gender", "History/Economy", "Welfare/Countries", "Organization/Movement", "Discourse/Politics", "Labor/Market", "Service/Profession", "Qualitative", "Micro/Humanist", "Family/Background", "Positivist/Risk", "School/Media", "Space/Culture", "Ethnic/Migration", "Class/Inequality", "Health/Demography", "Domestic/Narrative", "Education/Field", "Problems/Treatment"))
+
+gamma_terms$topic_label <- fct_rev(gamma_terms$topic_label)
+
+#due to problems in the ordering of the Kelly colors
+rev_list_kel <- c("#654522","#8DB600","#882D17","#DCD300","#B3446C","#F6A600","#604E97","#F99379","#0067A5","#E68FAC","#008856","#848482","#C2B280","#BE0032","#A1CAF1","#F38400","#875692","#F3C300","#222222","#F2F3F4")
+
+gamma_terms %>%
+  top_n(20, gamma) %>%
+  ggplot(aes(topic_label, gamma, label = terms, fill = topic_label)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(hjust = 0, nudge_y = 0.0005, size = 2.5,
+            family = "") +
+  coord_flip() +
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0, 0.125),
+                     labels = percent_format()) +
+  theme_minimal(base_family = "") +
+  theme(plot.title = element_text(size = 13,
+                                  family=""),
+        plot.subtitle = element_text(size = 10)) +
+  scale_fill_manual(values = paste0(rev_list_kel, "FF")) +
+  labs(x = NULL, y = expression(gamma),
+       title = "The 20 topics' prevalence in the abstract corpus",
+       subtitle = "Presented with their assigned labels and most contributing words")
+
+
+```
+
+# topicCorr().
+STM permits correlations between topics. Positive correlations between topics indicate
+that both topics are likely to be discussed within a document. A graphical network
+display shows how closely related topics are to one another (i.e., how likely they are
+to appear in the same document). This function requires 'igraph' package.
+
+## Load packages
+```{r}
+library(stm)
+library(stmCorrViz)
+library(ggplot2)
+library(igraph)
+library(stminsights)
+library(ggraph)
+```
+
+## Correlations without communities
+```{r}
+mod.out.corr <- topicCorr(stm_selectuniyear1, method = "simple", verbose = TRUE)
+plot(
+  mod.out.corr,
+  topics = NULL,
+  vlabels = topic_labels,
+  layout = NULL,
+  vertex.color = "lightgrey",
+  vertex.label.cex = 0.7,
+  vertex.label.color = "black",
+  vertex.size = NULL,
+)
+
+```
+
+## Correlations with communities
+```{r}
+stm_network <- get_network(stm_selectuniyear1, method = "simple", cutoff = 0.015, labels = topic_labels)
+stm_network_between <- cluster_edge_betweenness(stm_network)
+stm_network_prop <- cluster_label_prop(stm_network)
+V(stm_network)$size <- V(stm_network)$props*300
+E(stm_network)$width <- E(stm_network)$weight*60
+E(stm_network)$edge.color <- "mistyrose3"
+
+plot(stm_network_between, stm_network, edge.curved=.2, edge.color="mistyrose3", vertex.label.cex=0.8, vertex.label.font = 2, vertex.label.dist = 1, vertex.label.degree = pi/2, vertex.shape="circle", vertex.label.color = "black", vertex.frame.color = NA, mark.border = NA)
+```
+
+
+#Theta visualization of time
+```{r}
+library(reshape2)
+library(kableExtra)
+library(quanteda)
+library(knitr) 
+library(DT)
+library(tm)
+library(topicmodels)
+library(pals)
+library(flextable)
+library(ggplot2)
+
+floor_decade = function(value){ return(value - value %% 5) } 
+
+stm_abstracts$decade <- floor_decade(stm_abstracts$year)
+
+# get mean topic proportions per decade
+topic_proportion_per_decade <- aggregate(stm_selectuniyear1$theta, by = list(decade = stm_abstracts$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade)[2:21] <- topic_labels
+# reorder after topic proportions
+col_order <- c("decade", "Theory/Knowledge", "Gender", "History/Economy", "Welfare/Countries", "Organization/Movement", "Discourse/Politics", "Labor/Market", "Service/Profession", "Qualitative", "Micro/Humanist", "Family/Background", "Positivist/Risk", "School/Media", "Space/Culture", "Ethnic/Migration", "Class/Inequality", "Health/Demography", "Domestic/Narrative", "Education/Field", "Problems/Treatment")
+
+topic_proportion_per_decade <- topic_proportion_per_decade[ , col_order]
+
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_decade, id.vars = "decade")
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame, aes(x=decade, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(kelly(20), "FF"), name = "Topics, by prevalance in corpus") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Temporal proportions of the 20 topics",
+        x ="Year, by demi-decade", y = "Topic proportion")
+
+```
+
+
+#Theta visualization of space
+```{r}
+library(reshape2)
+library(kableExtra)
+library(quanteda)
+library(knitr) 
+library(DT)
+library(tm)
+library(topicmodels)
+library(pals)
+library(flextable)
+
+# get mean topic proportions per uni
+topic_proportion_per_uni <- aggregate(stm_selectuniyear1$theta, by = list(uni = stm_abstracts$uni), mean)
+
+# set topic names to aggregated column
+colnames(topic_proportion_per_uni)[2:21] <- topic_labels
+# reorder after topic proportions
+col_order <- c("uni", "Theory/Knowledge", "Gender", "History/Economy", "Welfare/Countries", "Organization/Movement", "Discourse/Politics", "Labor/Market", "Service/Profession", "Qualitative", "Micro/Humanist", "Family/Background", "Positivist/Risk", "School/Media", "Space/Culture", "Ethnic/Migration", "Class/Inequality", "Health/Demography", "Domestic/Narrative", "Education/Field", "Problems/Treatment")
+
+topic_proportion_per_uni <- topic_proportion_per_uni[ , col_order]
+
+uni_labels <- c("Gothenburg", "Lund", "OTHER", "Stockholm", "Umeå", "Uppsala")
+levels(topic_proportion_per_uni$uni) <- c("Gothenburg", "Lund", "OTHER", "Stockholm", "Umeå", "Uppsala")
+
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_uni, id.vars = "uni")
+# plot topic proportions per decade as bar plot
+ggplot(vizDataFrame, aes(x=uni, y=value, fill=variable)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(kelly(20), "FF"), name = "Topics, by prevalance in corpus") +
+  scale_x_discrete(limits=c("Stockholm", "Umeå", "Gothenburg", "Lund", "Uppsala")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Spatial proportions of the 20 topics",
+        x ="University", y = "Expected Topic Proportion")
+
+```
+
+# estimateEffect().
+Explore how prevalence of topics varies across documents according to document
+covariates (metadata). First, users must specify the variable that they wish to use 
+for calculating an effect. If there are multiple variables specified in 
+estimateEffect(), then all other variables are held at their sample median. These 
+parameters include the expected proportion of a document that belongs to a topic as
+a function of a covariate, or a first difference type estimate, where topic prevalence
+for a particular topic is contrasted for two groups (e.g., liberal versus conservative).
+
+
+## See how prevalence of topics differs across values of the continuous covariate of year
+
+```{r}
+prepyear <- estimateEffect(1:20 ~ +s(year), stm_selectuniyear1, meta = meta, uncertainty = "Global")
+```
+
+## tidystm visualization for continuous (time)
+```{r}
+library(tidystm)
+library(ggplot2)
+
+year_effect <- extract.estimateEffect(prepyear, "year", model = stm_selectuniyear1, method = "continuous", labeltype = "custom", custom.labels = topic_labels)
+```
+
+## Chosen categories of time
+```{r}
+## Recurrence
+ggplot(subset(year_effect, topic %in% c(1,4,5,11,16,17,18)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 4) +
+  geom_ribbon(alpha = .5) +
+  geom_line() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.1,0.25)) +
+  labs(title ="Topics balancing between the centuries", x = "Year",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+## 20th century
+ggplot(subset(year_effect, topic %in% c(3,8,9,12,13,20)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 4) +
+  geom_ribbon(alpha = .5) +
+  geom_line() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.1,0.25)) +
+  labs(title ="Topics leaning towards the 20th century", x = "Year",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## 21st century
+ggplot(subset(year_effect, topic %in% c(2,6,7,10,14,15,19)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 4) +
+  geom_ribbon(alpha = .5) +
+  geom_line() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.1,0.25)) +
+  labs(title ="Topics leaning towards the 21st century", x = "Year",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## See how prevalence of topics differs across values of the categoric covariate of year
+```{r}
+out$meta$uni <- as.factor(out$meta$uni)
+prepuni <- estimateEffect(1:20 ~ uni, stm_selectuniyear1, meta=out$meta, 
+                       uncertainty="Global")
+```
+
+## tidystm visualization for pointestimate (space)
+```{r}
+library(tidystm)
+
+space_effect <- extract.estimateEffect(prepuni, "uni", model = stm_selectuniyear1, method = "pointestimate", labeltype = "custom", custom.labels = topic_labels)
+
+levels(space_effect$covariate.value) <- c("Gothenburg", "Lund", "OTHER", "Stockholm", "Umeå", "Uppsala")
+
+# all topics
+space_effect %>%
+  ggplot( aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 4) +
+  geom_ribbon(alpha = .5) +
+  geom_point() +
+  geom_linerange() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1)) +
+  scale_x_discrete(limits=c("Stockholm", "Umeå", "Gothenburg", "Lund", "Uppsala")) +
+  labs(title = "University effect on all 20 topics", x = "University",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# subset QUANT
+ggplot(subset(space_effect, topic %in% c(2,4,5,7,10,16)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 3) +
+  geom_ribbon(alpha = .5) +
+  geom_point() +
+  geom_linerange() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.05,0.22)) +
+  scale_x_discrete(limits=c("Stockholm", "Umeå", "Gothenburg", "Lund", "Uppsala")) +
+  labs(title ="Topics where Stockholm or Umeå has the strongest spatial effect", x = "University",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# subset QUAL
+ggplot(subset(space_effect, topic %in% c(1,6,8,9,13,14,15,17)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 3) +
+  geom_ribbon(alpha = .5) +
+  geom_point() +
+  geom_linerange() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.05,0.22)) +
+  scale_x_discrete(limits=c("Stockholm", "Umeå", "Gothenburg", "Lund", "Uppsala")) +
+  labs(title ="Topics where Lund, Uppsala or Gothenburg has the strongest spatial effect", x = "University",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# subset NEUTRAL
+ggplot(subset(space_effect, topic %in% c(3,11,12,18,19,20)), aes(x = covariate.value, y = estimate,
+                   ymin = ci.lower, ymax = ci.upper,
+                   group = topic,
+                   fill = factor(topic))) +
+  facet_wrap(~ label, ncol = 3) +
+  geom_ribbon(alpha = .5) +
+  geom_point() +
+  geom_linerange() +
+  scale_y_continuous(breaks=seq(0.0,0.2,0.1), limits = c(-0.05,0.22)) +
+  scale_x_discrete(limits=c("Stockholm", "Umeå", "Gothenburg", "Lund", "Uppsala")) +
+  labs(title ="Topics where the spatial effect deviates or is marginal", x = "University",
+       y = "Expected Topic Proportion") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## tidystm visualization for difference (space)
+```{r}
+library(tidystm)
+effect_persp <- extract.estimateEffect(prepuni, "uni", model = stm_selectuniyear1, method = "difference", cov.value1 = "LU", cov.value2 = "GU", labeltype = "custom", custom.labels = topic_labels)
+
+effect_persp %>%
+  ggplot( aes(x = estimate, xmin = ci.lower, xmax = ci.upper, 
+              y = fct_reorder(as.character(label), estimate),
+                   group = topic,
+                   fill = factor(topic))) +
+  geom_ribbon(alpha = .5) +
+  geom_point() +
+  geom_linerange() +
+  scale_x_continuous(limits = c(-0.15,0.15), breaks=seq(-0.2,0.2,0.05)) +
+  labs(x = "Gothenburg University                              Lund University",
+       y = "Topic") +
+  theme(legend.position = "none")
+```
+
+# Investigate document-topic relations
+```{r}
+library(tidytext)
+library(ggplot2)
+library(dplyr)
+td_theta <- tidy(stm_selectuniyear1, matrix = "theta")
+
+ggplot(td_theta, aes(gamma, fill = as.factor(topic))) +
+  geom_histogram(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ topic, ncol = 3) +
+  labs(title = "Distribution of document probabilities for each topic",
+       y = "Number of documents", x = expression(theta))
+
+selectiontdthteta<-td_theta[td_theta$document%in%c(398:427),]#select the first 30 documents. be careful to select a sensible interval, as attempting to load a very huge corpus might crash the kernel
+
+thetaplot1<-ggplot(selectiontdthteta, aes(y=gamma, x=as.factor(topic), fill = as.factor(topic))) +
+  geom_bar(stat="identity",alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ document, ncol = 4) +
+  labs(title = "Theta values per document, 2003",
+       y = expression(theta), x = "Topic")
+
+thetaplot1
+```
+
+
+
+
+
+
+
+
+
