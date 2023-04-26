@@ -1,0 +1,1471 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+# STYLO
+
+## Bootstrapped consensus network (send .csv to Gephi)
+
+```{r}
+# Stylo for Mac requires XQuartz to be installed 
+library(stylo)
+library(stylo2gg)
+library(tidyverse)
+```
+
+## BCT
+
+```{r}
+pcr_styles_unigrams_polmed_bct <- stylo() # BTC (strenght 0,5), n-gram 1, 50-1550 MFWs (50 increment), culled 20-80 (20 increment), no sample
+```
+
+```{r}
+pcr_styles_unigrams_polmed_bct <- 
+  stylo(gui=FALSE,
+        analysis.type="BCT",
+        corpus.dir = "/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/corpus_polmed",
+        pca.visual.flavour = "classic",
+        analyzed.features="w",
+        ngram.size=1,
+        display.on.screen=TRUE,
+        sampling="no.sampling",
+        mfw.min=50,
+        mfw.max=1550,
+        mfw.incr = 50,
+        culling.min = 20,
+        culling.max = 80,
+        culling.incr = 20)
+```
+
+```{r}
+p <- pcr_styles_unigrams_polmed_bct %>% 
+  stylo2gg(shapes = TRUE, 
+           viz = "pca", 
+           highlight = c(1, 2, 3, 4, 5),
+           select.loadings = list(call("word", c("less", "likely", "think", "feel", "years", "a", "kind", "main",
+                                                 "say", "becomes", "reality", "what", "wanted", "as", "an",
+                                                 "how", "itself", "compared", "than", "developed", "few", "parent",
+                                                 "do", "who", "data", "it", "world", "sociological", "my", "he", "everyone",
+                                                 "concepts", "theory", "you", "have", "its", "theoretical",
+                                                 "of", "now", "political", "approach", "science", "worked", "woman", "father",
+                                                 "always", "live", "differences", "have", "expression", "interpretation", "processes",
+                                                 "meaning", "history", "idea", "factors", "themselves", "their",
+                                                 "women", "understand", "thought", "some", "phenomena",
+                                                 "levels", "being", "social", "argues", "sense",
+                                                 "countries", "social", "narratives", "herself", "she",
+                                                 "group", "criticism", "point", "her", "difficult", "moevement",
+                                                "positive", "children", "someone", "differences", "proportion",
+                                                 "percent", "effect", "population", "takes",
+                                               "structures", "construction", "discourse", 
+                                                "critical", "perspective", "interview", "survey", "knowledege",
+                                                "aim", "institutional", "policy", "state", "context",
+                                               "models", "welfare", "table", "impact", "expected",
+                                               "religion", "economy", "participant", 
+                                               "agency", "networks", "body", 
+                                               "emotions", "relations", "practices", 
+                                               "perception", "ethnicity", 
+                                               "participation", "immigrant",
+                                               "gender", "experiences", "feminist", 
+                                               "language", "field", "organization", "movements"))),
+           loadings_word_color = "gray18",
+           loadings_line_color = "gray88")
+
+
+p + aes(x = PC1, y = PC3)
+
+p
+
+p + 
+  theme_classic() +
+  scale_alpha_manual(values = rep(.4,5)) +
+  scale_shape_manual(values = c(18,8,17,15,16)) +
+  scale_color_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3","goldenrod1", "chartreuse4")) +
+  labs(title = "Principal component correlation matrix of the 1000 most frequent terms",
+       subtitle = "Symbols represent dissertations sorted by style and words the top loadings of the first principal components") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), 
+        legend.position = c(.95, .90), legend.title = element_blank(),
+        legend.justification = c("right", "top"), legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+```{r}
+
+library(tidyverse)
+library(tidytext)
+library(tm)
+
+freq.tdm <- TermDocumentMatrix(freq.df)
+
+freq.tidy <- tidy(freq)
+
+freq <- read.csv2("table_with_frequencies_t.csv")
+
+freq.matrix <- as.matrix(freq)
+
+freq.df <- as.data.frame(freq)
+
+freq.tb <- as.tibble(freq.df)
+
+freq.df %>%
+  count(words)
+
+freq.df <- t(freq.df)
+library(Matrix)
+library(text2map)
+freq.matrix <- Matrix(freq.matrix)
+doc_similarity(freq.df)
+```
+
+
+## PCA (on the basis of styles generated by BCN in Gephi)
+
+```{r}
+library(stylo)
+
+pcr_styles_unigrams_polmed <- 
+  stylo(gui=FALSE,
+        analysis.type="PCA",
+        corpus.dir = "/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/corpus_polmed",
+        pca.visual.flavour = "classic",
+        analyzed.features="w",
+        ngram.size=1,
+        display.on.screen=TRUE,
+        sampling="no.sampling",
+        mfw.min=1000,
+        mfw.max=1000)
+
+```
+
+
+# Visualization for analysis chapter in dissertation
+
+## Looking at the top loadings
+```{r}
+library(stylo2gg)
+p <- pcr_styles_unigrams_polmed_bct %>%
+  stylo2gg(shapes = TRUE, viz = "pca", top.loadings = 50)
+
+p + theme_classic() +
+  scale_alpha_manual(values = rep(.4,5)) +
+  scale_shape_manual(values = c(18,8,17,15,16)) +
+  scale_color_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3","goldenrod1", "chartreuse4")) +
+  labs(title = "Principal component correlation matrix of the 100 most frequent terms",
+       subtitle = "Symbols represent dissertations sorted by style and words the top loadings of the first principal components") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), 
+        legend.position = c(.95, .90), legend.title = element_blank(),
+        legend.justification = c("right", "top"), legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+## New list (currently in the chapter): PC1 PC2
+```{r}
+p <- pcr_styles_unigrams_polmed_bct %>% 
+  stylo2gg(shapes = TRUE, viz = "pca", 
+           select.loadings = list(call("word", c("less", "likely", "think", "feel", "years", "a", "kind", "main",
+                                                 "say", "becomes", "reality", "what", "wanted", "as", "an",
+                                                 "how", "itself", "compared", "than", "developed", "few", "parent",
+                                                 "do", "who", "data", "it", "world", "sociological", "my", "he", "everyone",
+                                                 "concepts", "theory", "you", "have", "its", "theoretical",
+                                                 "of", "now", "political", "approach", "science", "worked", "woman", "father",
+                                                 "always", "live", "differences", "have", "expression", "interpretation", "processes",
+                                                 "meaning", "history", "idea", "factors", "themselves", "their",
+                                                 "women", "understand", "thought", "some", "phenomena",
+                                                 "levels", "being", "social", "argues", "sense",
+                                                 "countries", "social", "narratives", "herself", "she",
+                                                 "group", "criticism", "point", "her", "difficult", "moevement",
+                                                "positive", "children", "someone", "differences", "proportion",
+                                                 "percent", "effect", "population", "takes",
+                                               "structures", "construction", "discourse", 
+                                                "critical", "perspective", "interview", "survey", "knowledege",
+                                                "aim", "institutional", "policy", "state", "context",
+                                               "models", "welfare", "table", "impact", "expected",
+                                               "religion", "economy", "participant", 
+                                               "agency", "networks", "body", 
+                                               "emotions", "relations", "practices", 
+                                               "perception", "ethnicity", 
+                                               "participation", "immigrant",
+                                               "gender", "experiences", "feminist", 
+                                               "language", "field", "organization", "movements"))),
+           loadings.word.color = "gray18",
+           loadings.line.color = "gray88")
+
+p + theme_classic() +
+  scale_alpha_manual(values = rep(.4,5)) +
+  scale_shape_manual(values = c(18,8,17,15,16)) +
+  scale_color_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3","goldenrod1", "chartreuse4")) +
+  labs(title = "Principal component correlation matrix of the 1000 most frequent terms",
+       subtitle = "Symbols represent dissertations sorted by style and words the top loadings of the first principal components") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), 
+        legend.position = c(.95, .90), legend.title = element_blank(),
+        legend.justification = c("right", "top"), legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+## PC2 PC3
+```{r}
+p2 <- pcr_styles_unigrams_polmed_bct %>% 
+  stylo2gg(shapes = TRUE, viz = "pca", pc.x = 3, pc.y = 2,
+           select.loadings = list(call("word", c("state", "countries", "population", "structures", "themselves", "relations", "my", "processes", "field", "feel", "individual", "individuals", "perspective", "meaning", "you", "group", "women", "children", "self", "history", "policy", "experiences"))),
+           loadings.word.color = "gray18",
+           loadings.line.color = "gray88")
+
+p2 + theme_classic() +
+  scale_alpha_manual(values = rep(.4,5)) +
+  scale_shape_manual(values = c(18,8,17,15,16)) +
+  scale_color_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3","goldenrod1", "chartreuse4")) +
+  labs(title = "Principal component correlation matrix of the 1000 most frequent terms",
+       subtitle = "Symbols represent dissertations sorted by style and words the top loadings of the first principal components") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), 
+        legend.position = c(.95, .90), legend.title = element_blank(),
+        legend.justification = c("right", "top"), legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+
+
+## Old list
+```{r}
+p <- pcr_styles_unigrams_polmed %>% 
+  stylo2gg(shapes = TRUE, viz = "pca", 
+           select.loadings = list(call("word", c("less", "likely", "go", "want", "feel", "years",
+                                                 "say", "becomes", "reality", "what",
+                                                 "how", "itself", "compared", "than", "by",
+                                                 "do", "who", "data", "it",
+                                                 "concept", "theory", "you", "have", "its", "theoretical",
+                                                 "of", "now", "perspectives", "political", "approach",
+                                                 "always", "live", "differences", "have",
+                                                 "meaning", "world", "history", "idea", "factors", "themselves", "their",
+                                                 "women", "understand", "thought", "long", "phenomena", "elements",
+                                                 "levels", "action", "being", "social", "time", "study",
+                                                 "countries", "social", "person",
+                                                 "group", "process", "discussion", "point",
+                                                "working", "children", "most", "someone", "want", "differences", "proportion",
+                                                 "greater", "empirical", "effect", "definition", "individual", "individuals", "population", "structure", "system", "experience", "theories", "structures", "class", "construction", "discourse", "critical", "text", "perspective", "interview", "interviews", "interviewees", "survey", "knowledege",
+                                                "aim", "empirical", "method", "research", "literature", "institutional", "policy", "state", "complex", "analytical", "context")))) +
+  theme_classic() +
+  scale_alpha_manual(values = rep(.5,5)) +
+  scale_shape_manual(values = c(9,1,8,2,0)) +
+  labs(title = "Principle component correlation matrix of the 500 most frequent terms",
+       subtitle = "Each symbol represents a dissertation and each term a top loading") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), legend.position="right", legend.title = element_blank())
+
+p + theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+## Plotting PC3
+
+```{r}
+p <- pcr_styles_unigrams_polmed_bct %>% 
+  stylo2gg(shapes = TRUE, viz = "pca", pc.x = 3, pc.y = 2,
+           select.loadings = list(call("word", c("less", "likely", "go", "want", "feel", "years",
+                                                 "say", "becomes", "reality", "what",
+                                                 "how", "itself", "compared", "than", "by",
+                                                 "do", "who", "data", "it",
+                                                 "concept", "theory", "you", "have", "its", "theoretical",
+                                                 "of", "now", "perspectives", "political", "approach",
+                                                 "always", "live", "differences", "have",
+                                                 "meaning", "world", "history", "idea", "factors", "themselves", "their",
+                                                 "women", "understand", "thought", "long", "phenomena", "elements",
+                                                 "levels", "action", "being", "social", "time", "study",
+                                                 "countries", "social", "person",
+                                                 "group", "process", "discussion", "point",
+                                                "working", "children", "most", "someone", "want", "differences", "proportion",
+                                                 "greater", "empirical", "effect", "definition", "individual", "individuals", "population", "structure", "system", "experience", "theories", "structures", "class", "construction", "discourse", "critical", "text", "perspective", "interview", "interviews", "interviewees", "survey", "knowledege",
+                                                "aim", "empirical", "method", "research", "literature", "institutional", "policy", "state", "complex", "analytical", "context")))) +
+  theme_classic() +
+  scale_alpha_manual(values = rep(.5,5)) +
+  scale_shape_manual(values = c(9,1,8,2,0)) +
+  labs(title = "Principle component correlation matrix of the 500 most frequent terms",
+       subtitle = "Each symbol represents a dissertation and each term a top loading") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), legend.position="right", legend.title = element_blank())
+
+p + theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+```{r}
+plot(pcr_styles_unigrams_polmed$pca.coordinates, aes(x = PC1, y = PC2))
+
+plot(pcr_styles_unigrams_polmed, x= PC1, y= PC2)
+
+```
+
+## Try on tSNE
+
+```{r}
+library(stylo)
+
+pcr_styles_unigrams_polmed_tsne <- 
+  stylo(gui=FALSE,
+        analysis.type="tSNE",
+        corpus.dir = "/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/corpus_polmed",
+        pca.visual.flavour = "classic",
+        analyzed.features="w",
+        ngram.size=1,
+        display.on.screen=TRUE,
+        sampling="no.sampling",
+        mfw.min=1000,
+        mfw.max=1000)
+
+```
+
+```{r}
+p <- pcr_styles_unigrams_polmed_tsne %>% 
+  stylo2gg(shapes = TRUE, 
+           select.loadings = list(call("word", c("less", "likely", "think", "feel", "years", "a", "kind", "main",
+                                                 "say", "becomes", "reality", "what", "wanted", "as", "an",
+                                                 "how", "itself", "compared", "than", "developed", "few", "parent",
+                                                 "do", "who", "data", "it", "world", "sociological", "my", "he", "everyone",
+                                                 "concepts", "theory", "you", "have", "its", "theoretical",
+                                                 "of", "now", "political", "approach", "science", "worked", "woman", "father",
+                                                 "always", "live", "differences", "have", "expression", "interpretation", "processes",
+                                                 "meaning", "history", "idea", "factors", "themselves", "their",
+                                                 "women", "understand", "thought", "some", "phenomena",
+                                                 "levels", "being", "social", "argues", "sense",
+                                                 "countries", "social", "narratives", "herself", "she",
+                                                 "group", "criticism", "point", "her", "difficult", "moevement",
+                                                "positive", "children", "someone", "differences", "proportion",
+                                                 "percent", "effect", "population", "takes",
+                                               "structures", "construction", "discourse", 
+                                                "critical", "perspective", "interview", "survey", "knowledege",
+                                                "aim", "institutional", "policy", "state", "context",
+                                               "models", "welfare", "table", "impact", "expected",
+                                               "religion", "economy", "participant", 
+                                               "agency", "networks", "body", 
+                                               "emotions", "relations", "practices", 
+                                               "perception", "ethnicity", 
+                                               "participation", "immigrant",
+                                               "gender", "experiences", "feminist", 
+                                               "language", "field", "organization", "movements"))),
+           loadings_word_color = "gray18",
+           loadings_line_color = "gray88")
+
+p + theme_classic() +
+  scale_alpha_manual(values = rep(.4,5)) +
+  scale_shape_manual(values = c(18,8,17,15,16)) +
+  scale_color_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3","goldenrod1", "chartreuse4")) +
+  labs(title = "Principal component correlation matrix of the 1000 most frequent terms",
+       subtitle = "Symbols represent dissertations sorted by style and words the top loadings of the first principal components") +
+  theme(plot.title = element_text(size = 30), plot.subtitle = element_text(size = 20),
+        plot.title.position = "plot", legend.text = element_text(size = 13), 
+        legend.position = c(.95, .90), legend.title = element_blank(),
+        legend.justification = c("right", "top"), legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  theme(plot.title = element_text(size = 17), plot.subtitle = element_text(size = 13))
+```
+
+
+## Try at Oppose
+
+```{r}
+library(stylo)
+
+raw.corpus <- load.corpus(files = "all", corpus.dir = "/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/corpus_polmed", encoding = "UTF-8")
+
+corpus.all <- txt.to.words.ext(raw.corpus, preserve.case = TRUE)
+corpus.conceptual <- corpus.all[grep("conceptual", names(corpus.all))]
+corpus.numerical <- corpus.all[grep("numerical", names(corpus.all))]
+
+corpus.medial <- corpus.all[grep("medial", names(corpus.all))]
+corpus.personal <- corpus.all[grep("personal", names(corpus.all))]
+corpus.political <- corpus.all[grep("political", names(corpus.all))]
+
+
+zeta.results <- oppose(primary.corpus = corpus.medial, secondary.corpus = corpus.numerical, gui = FALSE)
+zeta.results$words.preferred[1:30]
+zeta.results$words.avoided[1:30]
+
+combined.features <- c(zeta.results$words.preferred[1:20], zeta.results$words.avoided[1:20])
+stylo(parsed.corpus = corpus.all, features = combined.features, gui = FALSE)
+
+```
+
+
+
+
+
+# TIDY TEXT (on the basis of styles generated by BCN in Gephi)
+
+## Read xml, create corpus and handle metadata
+```{r}
+library(tm)
+library(xml2)
+setwd("~/Documents/Text mining/Avhandlingar/Project files/All full-text/TranslatedALLtxt")
+allxml <- list.files(pattern = "\\.xml$")
+
+spec <- list(
+     id = list("node", "id"),
+     year = list("node", "year"),
+     uni = list("node", "uni"),
+     author = list("node", "author"),
+     language = list ("node", "language"),
+     disstype = list ("node", "disstype"),
+     gender = list("node", "gender"),
+     content = list("node", "text"))
+
+myXMLReader <- readXML(
+   spec = spec,
+   doc = PlainTextDocument())
+
+children <- function(x)
+  xml2::xml_children(xml2::xml_children(x))
+
+mySource <- function(x)
+  XMLSource(x, parser = children, reader = myXMLReader)
+
+print(allxml[1])
+
+allmaincorp <- VCorpus(mySource(allxml[1]),
+                   readerControl = list(reader = myXMLReader))
+
+inspect(allmaincorp)
+attributes(allmaincorp)
+meta(allmaincorp)
+summary(allmaincorp$meta)
+
+allmaincorp_meta <- list()
+
+for (name in names(spec)) {
+  allmaincorp_meta <- cbind(allmaincorp_meta, meta(allmaincorp, name))
+}
+
+colnames(allmaincorp_meta) <- names(spec)
+print(as.data.frame(allmaincorp_meta))
+class(allmaincorp_meta)
+
+allmaincorp_meta
+
+```
+
+## Prune corpus and cast to tidy
+```{r}
+library(tidyverse)
+library(tidytext)
+# original prune
+allmaincorp_map <- tm_map(allmaincorp, removePunctuation)
+allmaincorp_map <- tm_map(allmaincorp_map, removeNumbers)
+allmaincorp_map <- tm_map(allmaincorp_map, content_transformer(tolower))
+allmaincorp_map <- tm_map(allmaincorp_map, stripWhitespace)
+
+tidy_allmain <- tidy(allmaincorp) #original corpus
+tidy_allmain_map <- tidy(allmaincorp_map) #original corpus minus uppercase/punctuation/numbers/whitespace
+```
+
+```{r}
+tidy_allmain %>%
+  count(year)
+
+a <- stm_abstracts %>%
+  unnest_tokens(word, text)
+
+print(a, n= 100)
+```
+
+
+## prepare for stylo-based post-Gephi analysis
+```{r}
+stylo_df <- read_csv("stylo_gephi.csv")
+
+stylo_df <- arrange(stylo_df, Id)
+stylo_df$id <- stylo_df$Label
+
+tidy_allmain_stylo <- tidy_allmain_map
+tidy_allmain_stylo <- arrange(tidy_allmain_stylo, id)
+
+stylo_df$id <- gsub(".txt","",as.character(stylo_df$id))
+stylo_df$id <- gsub("txt","",as.character(stylo_df$id))
+tidy_allmain_stylo$id <-gsub(".txt","",as.character(tidy_allmain_stylo$id))
+tidy_allmain_stylo$id <-gsub("_","",as.character(tidy_allmain_stylo$id))
+
+print(tidy_allmain_stylo$id)
+print(stylo_df$id)
+
+tidy_allmain_stylo <- inner_join(tidy_allmain_stylo, stylo_df, by = "id")
+
+tidy_allmain_stylo$modularity_name <- tidy_allmain_stylo$modularity_class
+tidy_allmain_stylo$modularity_name <- as.character(tidy_allmain_stylo$modularity_name)
+tidy_allmain_stylo$modularity_name <- str_replace_all(tidy_allmain_stylo$modularity_name, c("0" = "The critical style", "1" = "The conceptual style", "2" = "The personal style", "3" = "The numerical style", "4" = "The cultural style"))
+
+
+tidy_allmain_stylo_token <- tidy_allmain_stylo %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+
+tidy_allmain_stylo_token %>%
+  count(word, sort = TRUE)
+
+```
+
+
+
+# basic descriptive statistics
+
+```{r}
+tidy_allmain %>%
+  group_by(uni) %>%
+  summarise(n = n())
+
+print(moduni)
+
+tidy_allmain_stylo %>%
+  group_by(modularity_name) %>%
+  summarise(n = n())
+
+```
+
+```{r}
+moduni <- tidy_allmain_stylo %>%
+  group_by(modularity_name, uni) %>%
+  summarise(n = n())
+
+print(moduni)
+
+tidy_allmain_stylo %>%
+  group_by(modularity_name) %>%
+  summarise(n = n())
+
+```
+## tidytext variable names
+```{r}
+book_words <- tidy_allmain_stylo %>%
+  unnest_tokens(word, text) %>%
+  count(modularity_name, word, sort = TRUE)
+
+total_words <- book_words %>% 
+  group_by(modularity_name) %>% 
+  summarize(total = sum(n))
+
+book_words <- left_join(book_words, total_words)
+book_words
+
+```
+
+## Term freq
+```{r}
+library(ggplot2)
+
+ggplot(book_words, aes(n/total, fill = modularity_name)) +
+  geom_histogram(show.legend = FALSE) +
+  xlim(NA, 0.0009) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free_y")
+
+freq_by_rank <- book_words %>% 
+  group_by(modularity_name) %>% 
+  mutate(rank = row_number(), 
+         `term frequency` = n/total) %>%
+  ungroup()
+
+freq_by_rank %>% 
+  ggplot(aes(rank, `term frequency`, color = modularity_name)) + 
+  geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + 
+  scale_x_log10() +
+  scale_y_log10()
+
+rank_subset <- freq_by_rank %>% 
+  filter(rank < 500,
+         rank > 10)
+
+lm(log10(`term frequency`) ~ log10(rank), data = rank_subset)
+
+freq_by_rank %>% 
+  ggplot(aes(rank, `term frequency`, color = modularity_name)) + 
+  geom_abline(intercept = -0.62, slope = -1.1, 
+              color = "gray50", linetype = 2) +
+  geom_line(size = 1.1, alpha = 0.8, show.legend = FALSE) + 
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+## Filter out infrequent words
+```{r}
+
+```
+
+## Tf_idf
+```{r}
+book_tf_idf <- book_words %>%
+  bind_tf_idf(word, modularity_name, n)
+
+book_tf_idf
+
+book_tf_idf %>%
+  select(-total) %>%
+  arrange(desc(tf_idf))
+
+book_tf_idf %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 10) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(word, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+```{r}
+library(ggplot2)
+stylo_tf_idf <- tidy_allmain_stylo_token %>%
+    count(modularity_name, word, sort = TRUE) %>%
+    bind_tf_idf(word, modularity_name, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(modularity_name) %>%
+    top_n(15) %>%
+    ungroup
+
+stylo_tf_idf %>%
+    mutate(word = reorder_within(word, tf_idf, modularity_name)) %>%
+    ggplot(aes(word, tf_idf, fill = modularity_name)) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ modularity_name, scales = "free", ncol = 3) +
+    scale_x_reordered() +
+    coord_flip() +
+    theme(strip.text=element_text(size=11)) +
+    labs(x = NULL, y = "tf-idf",
+         title = "Tf-idf",
+         subtitle = "")
+
+library(forcats)
+
+stylo_tf_idf %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(word, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+# Style networks
+## Load libraries
+```{r}
+library(igraph)
+library(ggraph)
+library(widyr)
+```
+
+
+## Function for generating and visualizing word graphs
+```{r}
+generate_word_graph <- function(tidy_allmain_stylo_token,
+                                minimum_author_n = 100,
+                                minimum_correlation = 0.2) {
+  
+  authorsperword <- tidy_allmain_stylo_token %>%
+    count(word, name = "author_n") %>%
+    filter(author_n >= minimum_author_n)
+  
+  word_correlations <- tidy_allmain_stylo_token %>%
+    semi_join(authorsperword, by = "word") %>%
+    pairwise_cor(item = word, feature = author_n) %>%
+    filter(correlation >= minimum_correlation)
+  
+  graph_from_data_frame(d = word_correlations,
+                        vertices = authorsperword %>%
+                        semi_join(word_correlations, by = c("word" = "item1"))) %>%
+    ggraph(layout = "fr") +
+    ylab("") +
+    xlab("") +
+    geom_edge_link(aes(alpha = correlation)) +
+    geom_node_point() +
+    geom_node_text(aes(color = Id, label = name), repel = TRUE) +
+    guides(col = guide_legend(order = 1)) +
+    scale_color_distiller(palette="YlOrBr", direction = -1) +
+    theme_dark() +
+    theme(legend.position = "bottom",
+        legend.background = element_rect(fill = NA),
+        legend.text = element_text(size = 8, colour = "black"),
+        legend.title = element_text(size = 9, colour = "black", face = "bold"))
+}
+```
+
+## Generate plot for full corpus with the newfunction
+```{r}
+tidy_allmain_stylo_token %>%
+  generate_word_graph(minimum_author_n = 380, minimum_correlation = 0.9) +
+  labs(title = "Word graph of the complete dissertation abstract corpus", caption = "Words appearing in at least 10% of the abstracts with a minimum correlation of 0.2") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+## Break the corpus into sub-corpora for comparison
+```{r}
+net_conceptual <- tidy_allmain_stylo_token %>%
+  filter(modularity_name == "The conceptual style")
+
+net_critical <- tidy_allmain_stylo_token %>%
+  filter(modularity_name == "The critical style")
+
+net_cultural <- tidy_allmain_stylo_token %>%
+  filter(modularity_name == "The cultural style")
+
+net_numerical <- tidy_allmain_stylo_token %>%
+  filter(modularity_name == "The numerical style")
+
+net_personal <- tidy_allmain_stylo_token %>%
+  filter(modularity_name == "The personal style")
+```
+
+## Generate plots for styles
+```{r}
+net_conceptual_viz <- net_conceptual %>%
+  generate_word_graph(minimum_author_n = 11, minimum_correlation = 0.99) +
+  labs(title = "The conceptual style") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "none")
+
+net_critical_viz <- net_critical %>%
+  generate_word_graph(minimum_author_n = 104, minimum_correlation = 0.95) +
+  labs(title = "The critical style") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "none")
+
+net_cultural_viz <- net_cultural %>%
+  generate_word_graph(minimum_author_n = 43, minimum_correlation = 0.95) +
+  labs(title = "The cultural style") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "none")
+
+net_numerical_viz <- net_numerical %>%
+  generate_word_graph(minimum_author_n = 78, minimum_correlation = 0.95) +
+  labs(title = "The numerical style", caption = "Words appearing in at least 80% of a style's dissertations with a minimum correlation of 0.95") +
+  theme(plot.caption.position = "plot") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "none")
+
+net_personal_viz <- net_personal %>%
+  generate_word_graph(minimum_author_n = 67, minimum_correlation = 0.95) +
+  labs(title = "The personal style") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.margin = margin(0, 0, 0, 0, "pt"))
+```
+
+## Put the visuals side-by-side for comparison
+```{r}
+library(gridExtra)
+grid_network <- grid.arrange(net_conceptual_viz, net_critical_viz, net_cultural_viz, net_numerical_viz, net_personal_viz, ncol=2)
+plot(grid_network)
+```
+
+# bigram analysis
+
+```{r}
+library(tidyverse)
+library(tidytext)
+
+stylo_bigrams <- tidy_allmain_stylo %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+
+bigrams_separated <- stylo_bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word1 %in% c("dont", "chapter", "study", "yeah", "countries", "country", "normal", "society", "studies", "swedish", "boundary", "didnt", "doesnt", "im", "care", "bit", "ive")) %>%
+  filter(!word2 %in% c("dont", "chapter", "study", "yeah", "countries", "country", "normal", "society", "studies", "swedish", "boundary", "didnt", "doesnt", "im", "care", "bit", "ive")) %>%
+  filter(!word1 %in% (1:1000000) ) %>%
+  filter(!word2 %in% (1:1000000) )
+
+bigrams_filtered [!duplicated(bigrams_filtered[c(19,20)]),]
+
+# new bigram counts:
+bigram_counts <- bigrams_filtered %>% 
+  count(word1, word2, sort = TRUE)
+
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+```
+
+# Viz original
+```{r}
+
+bigram_tf_idf_id <- bigrams_united %>%
+  count(id, modularity_name, bigram) %>%
+  bind_tf_idf(bigram, id, n) %>%
+  arrange(desc(tf_idf))
+
+bigram_tf_idf_id %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(bigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+
+## Filter with tm package - dtm version
+```{r}
+library(tm)
+library(tidyverse)
+library(tidytext)
+# sparse it
+tidy_allmain_stylo_dtm <- cast_dtm(bigrams_united, modularity_name, bigram, Degree)
+tidy_allmain_stylo_dtm <- removeSparseTerms(tidy_allmain_stylo_dtm, 0.95)
+
+tidy_allmain_sparse <- tidy(tidy_allmain_stylo_dtm)
+
+bigram_tf_idf_sparse <- tidy_allmain_sparse %>%
+  count(document, term) %>%
+  bind_tf_idf(term, document, n) %>%
+  arrange(desc(tf_idf, document))
+
+# visualize
+
+bigram_tf_idf_sparse %>%
+  group_by(document) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(term, tf_idf), fill = document)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~document, ncol = 2, scales = "free") +
+  theme_minimal(base_family = "") +
+  theme(plot.title = element_text(size = 13,
+                                  family=""),
+        plot.subtitle = element_text(size = 10)) +
+    labs(x = "tf-idf", y = NULL,
+       title = "Comparison of bigrams on the basis of style",
+       subtitle = "Presented with their assigned labels and most contributing words")
+
+```
+```{r}
+bigram_tf_idf_id_filterc %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(bigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+## Filter with own method
+```{r}
+
+# version 1
+bigrams_united_filtera <- bigrams_united %>%
+  group_by(bigram) %>%
+  filter(n() >= 4)
+
+bigram_tf_idf_filtera <- bigrams_united_filtera %>%
+  count(modularity_name, bigram) %>%
+  bind_tf_idf(bigram, modularity_name, n) %>%
+  arrange(desc(tf_idf))
+
+# version 2
+  
+#a
+bigram_tf_idf_id_filterb <- bigram_tf_idf_id %>% 
+  group_by(bigram) %>%
+  filter(n() >= 4) %>%
+  arrange(desc(tf_idf))
+
+#b
+bigram_tf_idf_id_filterc <- bigram_tf_idf_id %>% 
+  semi_join(bigram_tf_idf_id %>% count(bigram) %>% filter(n >= 4)) %>% 
+  arrange(desc(tf_idf))
+
+# visualize
+
+bigram_tf_idf_filtera %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(bigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+
+bigram_tf_idf_id_filterb %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(bigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+
+bigram_tf_idf_id_filterc %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(bigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+
+## Trigrams
+```{r}
+library(tidyverse)
+library(tidytext)
+stylo_trigrams <- tidy_allmain_stylo %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3)
+
+trigrams_separated <- stylo_trigrams %>%
+  separate(trigram, c("word1", "word2", "word3"), sep = " ")
+
+trigrams_filtered <- trigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word3 %in% stop_words$word)
+
+# new trigram counts:
+trigram_counts <- trigrams_filtered %>% 
+  count(word1, word2, word3, sort = TRUE)
+
+trigrams_united <- trigrams_filtered %>%
+  unite(trigram, word1, word2, word3, sep = " ")
+
+trigram_tf_idf_id <- trigrams_united %>%
+  count(id, modularity_name, trigram) %>%
+  bind_tf_idf(trigram, modularity_name, n) %>%
+  arrange(desc(tf_idf))
+
+trigram_tf_idf_id$n <- trigram_tf_idf_id$count
+
+trigram_tf_idf_id_filter <- trigram_tf_idf_id %>%
+  count(trigram) %>%
+  filter(n > 2)
+
+trigram_tf_idf_id_filter <- trigram_tf_idf_id %>% 
+  group_by(trigram) %>%
+  filter(n() == 3)
+
+trigram_tf_idf_id_filter$n <- trigram_tf_idf_id_filter$count
+
+trigram_tf_idf_id_filter %>%
+  group_by(modularity_name) %>%
+  slice_max(tf_idf, n = 20) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(trigram, tf_idf), fill = modularity_name)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+# perform sentiment analysis on corpus 
+```{r}
+library(tidyverse)
+library(reshape2)
+library(tm)
+
+senti_stopwords <- bind_rows(tibble(word =
+ c("problem", "problems", "difficult", "work", "important", "like", "well", "clear", "right", "significant", "object", "limited", "good", "support", "risk", "regression", "modern", "strong", "positive", "punk", "issues", "issue", "regard", "complex", "precisely", "distinction", "lead", "leads", "led", "lack"),
+ lexicon = c("custom")), stop_words)
+
+token_allmain_senti <- tidy_allmain_stylo %>%
+  unnest_tokens(word, text) %>%
+  anti_join(senti_stopwords)
+
+# (for some reason, you need to first transfer corpus to dtm and then to tidy to get it to work)
+
+dtm_senti <- token_allmain_senti %>%
+  count(modularity_name, word) %>%
+  cast_dtm(modularity_name, word, n)
+
+stylo_tidy_dtm <- tidy(dtm_senti)
+
+stylo_senti <- stylo_tidy_dtm %>%
+  inner_join(get_sentiments("bing"), by = c(term = "word"))
+```
+
+```{r}
+stylo_senti %>%
+  count(document, sentiment, wt = count) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative) %>%
+  arrange(sentiment)
+
+stylo_senti %>%
+  count(sentiment, term, wt = count) %>%
+  filter(n >= 1000) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(term = reorder(term, n)) %>%
+  ggplot(aes(term, n, fill = sentiment)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylab("Contribution to sentiment")
+
+# contribution to positive-negative sentiment
+bing_word_counts <- token_allmain_senti %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 15) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+
+
+```
+
+```{r}
+# word cloud of postitive negative sentiments
+library(wordcloud)
+token_allmain_senti %>%
+inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"),
+                   max.words = 100)
+
+personal_senti %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"),
+                   max.words = 100)
+
+critical_senti <- subset(token_allmain_senti, modularity_name == "The critical style")
+conceptual_senti <- subset(token_allmain_senti, modularity_name == "The conceptual style")
+numerical_senti <- subset(token_allmain_senti, modularity_name == "The numerical style")
+cultural_senti <- subset(token_allmain_senti, modularity_name == "The cultural style")
+personal_senti <- subset(token_allmain_senti, modularity_name == "The personal style")
+
+```
+
+
+```{r}
+# compare
+contruct_stylo_senti <- subset(stylo_senti, document == "Constructionist")
+quant_stylo_senti <- subset(stylo_senti, document == "Quantitative")
+polethno_stylo_senti <- subset(stylo_senti, document == "Policy/Ethnography")
+realday_stylo_senti <- subset(stylo_senti, document == "Realist/Everyday")
+
+realday_stylo_senti %>%
+  count(sentiment, term, wt = count) %>%
+  filter(n >= 500) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(term = reorder(term, n)) %>%
+  ggplot(aes(term, n, fill = sentiment)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylab("Contribution to sentiment")
+
+```
+
+## Sentiment over time
+```{r}
+
+personal_senti %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(modularity_name, year, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"),
+                   max.words = 100)
+
+senti_allmain_total <- tidy_allmain_stylo_token %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(modularity_name, year, sentiment) %>%
+  spread(sentiment, n, fill = 0)
+
+ggplot(senti_allmain_total, aes(year, sentiment, fill = modularity_name)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free_x") +
+  ggtitle("trust")
+
+senti_allmain_divided <- tidy_allmain_stylo_token %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(modularity_name, year, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+ggplot(senti_allmain_divided, aes(year, sentiment, fill = modularity_name)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  facet_wrap(~modularity_name, ncol = 2, scales = "free_x")
+
+```
+
+# Top5 corpus
+```{r}
+library(tm)
+library(tidyverse)
+library(tidytext)
+setwd("/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/corpus_top5_5doc")
+top5_corp <- VCorpus(DirSource(pattern = ".txt"))
+
+top5_corp_map <- top5_corp %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removePunctuation, preserve_intra_word_dashes = TRUE)  %>%
+  tm_map(stripWhitespace)
+
+top5_tidy <- tidy(top5_corp_map)
+
+top5_tidy_token <- top5_tidy %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+
+
+```
+
+# Top5 tf-idf
+```{r}
+library(ggplot2)
+top5_tf_idf <- top5_tidy_token %>%
+    count(id, word, sort = TRUE) %>%
+    bind_tf_idf(word, id, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(id) %>%
+    top_n(15) %>%
+    ungroup
+
+top5_tf_idf %>%
+    mutate(word = reorder_within(word, tf_idf, id)) %>%
+    ggplot(aes(word, tf_idf, fill = id)) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ id, scales = "free", ncol = 3) +
+    scale_x_reordered() +
+    coord_flip() +
+    theme(strip.text=element_text(size=11)) +
+    labs(x = NULL, y = "tf-idf",
+         title = "Tf-idf",
+         subtitle = "")
+
+library(forcats)
+
+top5_tf_idf %>%
+  group_by(id) %>%
+  slice_max(tf_idf, n = 15) %>%
+  ungroup() %>%
+  ggplot(aes(tf_idf, fct_reorder(word, tf_idf), fill = id)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~id, ncol = 2, scales = "free") +
+  labs(x = "tf-idf", y = NULL)
+```
+
+#top5 vs allmain counts
+```{r}
+top5_tidy_token %>%
+    filter(id == "cultural.txt") %>% # filter by author, specifically Marx
+    count(word, sort = TRUE) %>% # again, count words and sort from high to low
+    top_n(10) # only the top 10
+```
+
+```{r}
+tidy_allmain_stylo_token %>%
+    filter(modularity_name == "The critical style") %>% # filter by author, specifically Marx
+    count(word, sort = TRUE) %>% # again, count words and sort from high to low
+    top_n(30) # only the top 10
+```
+
+# Top5 network
+## Load libraries
+```{r}
+library(igraph)
+library(ggraph)
+library(widyr)
+```
+
+## create sub-corpora
+```{r}
+critical_token <- tidy_allmain_stylo_token %>%
+    filter(modularity_name == "The critical style")
+```
+
+```{r}
+top5.words <- top5_tidy_token %>% # we will need to store a separate object with the counts
+  count(id, word, sort = TRUE) # including all words and the number of times each author have used them
+top5.words.count <- top5.words %>% # also a separate object with the total words for each work
+  group_by(id) %>% # first group by author
+  summarize(total = sum(n)) # second summarize the total word could
+top5.words.count <- left_join(top5.words.count, top5.words) # finally join the words by author with the total words of each author
+```
+
+```{r}
+library(widyr) # load package for computing correlations, co-occurrences etc on tidy data
+top5.words.corr <- top5.words.count %>% # reuse the object for author word counts
+  group_by(word) %>% # group by the variable "word"
+  filter(n >= 250) %>% # only keep words occurring at least 250 times
+  pairwise_cor(word, id, method = "pearson", sort = TRUE, upper = FALSE) # calculating the Pearson correlation coefficient; sort; avoid duplicates
+
+```
+
+```{r}
+library(igraph) # load package for constructing graphs
+set.seed(1234) # pick a seed number to get the same results for randomization
+top5.words.corr.graph <- top5.words.corr %>%
+  filter(correlation > .9) %>% # filter to avoid overflowing the graph with insignificant words
+  graph_from_data_frame() # turning our word correlations into a graph
+```
+
+```{r}
+library(ggraph) # an extension of ggplot2 aimed at supporting relational data structures
+top5.words.corr.graph %>% 
+  ggraph() + # function for generating a graph; you can try several different layouts with argument layout = "fr" [alt. "kk" or "drl"...)
+  geom_edge_link(aes(edge_alpha = correlation, edge_width = correlation), edge_colour = "orange") + # the edges/links are taken from the correlation variable; choose a cool color
+  geom_node_point(size = 0.5*igraph::degree(top5.words.corr.graph), colour = "lightblue") + # size the nodes/points based on half the number of its adjacent edges; color it
+  geom_node_text(aes(label = name), repel = TRUE) + # display the word associated with each node/point; repel to enable interpretation
+  theme_void() # add a haunting theme to let the graph elevate
+```
+
+
+```{r}
+
+top5_tidy_token_1style <- top5_tidy_token %>%
+  filter(id == "critical.txt")
+
+words_per_style <- top5_tidy_token_1style %>%
+  count(word, name = "id_n") 
+
+words_corr <- top5_tidy_token_1style %>%
+    semi_join(words_per_style, by = "word") %>%
+    pairwise_cor(item = word, feature = id) %>%
+    filter(correlation >= 0.8)
+
+graph_from_data_frame(d = words_corr, 
+                      vertices = words_per_style %>%
+                      semi_join(words_corr, by = c("word" = "item1"))) %>%
+    ggraph(layout = "fr") +
+    geom_edge_link(aes(alpha = correlation)) +
+    geom_node_point() +
+    geom_node_text(aes(color = id_n, label=name), repel=TRUE) +
+    theme_classic()
+
+fig(14,8)
+```
+
+
+## Calculate word counts and correlations
+```{r}
+library(widyr)
+authorsperword <- top5_tidy_token %>%
+  count(word, name = "id") %>%
+  filter(id <= 100)
+
+word_correlations <- top5_tidy_token %>%
+  semi_join(authorsperword, by = "word") %>%
+  pairwise_cor(item = word, feature = id) %>%
+  filter(correlation >= 0.8)
+
+```
+
+## Build a word network plot
+```{r}
+library(igraph)
+library(ggraph)
+graph_from_data_frame(d = word_correlations,
+                      vertices = authorsperword) %>%
+  ggraph(layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name))
+```
+
+## Generate a visualization
+```{r}
+library(RColorBrewer)
+par(mar=c(3,4,2,2))
+display.brewer.all()
+
+
+graph_from_data_frame(d = word_correlations,
+                      vertices = authorsperword %>%
+                      semi_join(word_correlations, by = c("word" = "item1"))) %>%
+  ggraph(layout = "fr") +
+  ylab("") +
+  xlab("") +
+  geom_edge_link(aes(alpha = correlation)) +
+  geom_node_point() +
+  geom_node_text(aes(color = author, label = name), repel = TRUE) +
+  guides(col = guide_legend(order = 1)) +
+  scale_color_distiller(palette="YlOrBr", direction = -1) +
+  theme_dark() +
+  theme(legend.position = "bottom",
+        legend.background = element_rect(fill = NA),
+        legend.text = element_text(size = 8, colour = "black"),
+        legend.title = element_text(size = 9, colour = "black", face = "bold"))
+```
+
+
+# Network all books
+
+## create sub-corpora of complete corpus
+```{r}
+critical_token <- tidy_allmain_stylo_token %>%
+    filter(modularity_name == "The critical style")
+```
+
+```{r}
+top5.words <- critical_token %>% # we will need to store a separate object with the counts
+  count(id, word, sort = TRUE) # including all words and the number of times each author have used them
+top5.words.count <- top5.words %>% # also a separate object with the total words for each work
+  group_by(id) %>% # first group by author
+  summarize(total = sum(n)) # second summarize the total word could
+top5.words.count <- left_join(top5.words.count, top5.words) # finally join the words by author with the total words of each author
+```
+
+```{r}
+library(widyr) # load package for computing correlations, co-occurrences etc on tidy data
+top5.words.corr <- top5.words.count %>% # reuse the object for author word counts
+  group_by(word) %>% # group by the variable "word"
+  filter(n >= 500) %>% # only keep words occurring at least 250 times
+  pairwise_cor(word, id, method = "pearson", sort = TRUE, upper = FALSE) # calculating the Pearson correlation coefficient; sort; avoid duplicates
+
+```
+
+```{r}
+library(igraph) # load package for constructing graphs
+set.seed(1234) # pick a seed number to get the same results for randomization
+top5.words.corr.graph <- top5.words.corr %>%
+  filter(correlation > .7) %>% # filter to avoid overflowing the graph with insignificant words
+  graph_from_data_frame() # turning our word correlations into a graph
+```
+
+```{r}
+library(ggraph) # an extension of ggplot2 aimed at supporting relational data structures
+top5.words.corr.graph %>% 
+  ggraph() + # function for generating a graph; you can try several different layouts with argument layout = "fr" [alt. "kk" or "drl"...)
+  geom_edge_link(aes(edge_alpha = correlation, edge_width = correlation), edge_colour = "orange") + # the edges/links are taken from the correlation variable; choose a cool color
+  geom_node_point(size = 0.5*igraph::degree(top5.words.corr.graph), colour = "lightblue") + # size the nodes/points based on half the number of its adjacent edges; color it
+  geom_node_text(aes(label = name), repel = TRUE) + # display the word associated with each node/point; repel to enable interpretation
+  theme_void() # add a haunting theme to let the graph elevate
+```
+
+# Styles over time and space
+
+## Time
+### Heatmap
+```{r}
+library(tidyverse)
+library(forcats)
+library(dplyr)
+library(hrbrthemes)
+library(viridis)
+
+
+g <- heatmap_year %>%
+  ggplot( aes(Year, Style, fill=values)) +
+  geom_tile() +
+  geom_text(aes(label = values)) +
+  scale_fill_viridis_c(option = "mako") +
+  theme_minimal()
+
+g +
+  scale_y_discrete(limits = c("Numerical", "Personal", "Cultural", "Critical", "Conceptual")) +
+  scale_x_discrete(limits = c("2000-2003", "2004-2007", "2008-2011", "2012-2015", "2016-2019")) +
+  theme(axis.title.y=element_blank(), axis.title.x=element_blank(), legend.title= element_blank())
+
+```
+
+### Multiple timeseries
+```{r}
+library(readxl)
+heatmap_timeseries <- read_excel("/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/heatmap_to_timeseries_polmed.xlsx", 
+    col_types = c("text", "numeric", "numeric"))
+```
+
+```{r}
+library(tidyverse)
+library(viridis)
+library(hrbrthemes)
+
+# Count
+plot_timeseries <- heatmap_timeseries %>%
+   dplyr::count(Year, Style)
+
+plot_timeseries2 <- heatmap_timeseries %>%
+  dplyr::count(Year)
+
+ggplot(plot_timeseries, aes(Year, n)) +
+  ylab("Production of dissertations") +
+  xlab("Year of publication") +
+  geom_area(data = plot_timeseries2, fill = "grey70") +
+  geom_area(aes(fill = Style)) + 
+  facet_wrap(~Style, ncol = 2) +
+  theme_classic() +
+  scale_fill_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3", "goldenrod1","chartreuse4")) +
+    theme(legend.text = element_text(size = 8), 
+          legend.position = c(.98, .00), legend.title = element_text(size = 10),
+          legend.justification = c("right", "bottom"), legend.box.just = "right",
+          legend.margin = margin(1, 1, 1, 1),
+          legend.title.align=0.5,
+          strip.background = element_blank(),
+          strip.text.x = element_blank()) +
+  guides(fill = guide_legend(nrow = 1))
+```
+
+## Space
+### Heatmap
+```{r}
+library(readxl)
+heatmap_uni <- read_excel("/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/heatmap_style_table_uni.xlsx", 
+    col_types = c("text", "text", "numeric"))
+```
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(dplyr)
+library(hrbrthemes)
+library(viridis)
+
+
+g <- heatmap_uni %>%
+  ggplot( aes(Uni, Style, fill=values)) +
+  geom_tile() +
+  geom_text(aes(label = values)) +
+  scale_fill_viridis_c(option = "plasma") +
+  theme_minimal()
+
+g +
+  scale_y_discrete(limits = c("Numerical", "Personal", "Cultural", "Critical", "Conceptual")) +
+  scale_x_discrete(limits = c("Stockholm", "Umeå", "Gothenburg", "Uppsala", "Lund")) +
+  theme(axis.title.y=element_blank(), axis.title.x=element_blank(), legend.title= element_blank())
+
+```
+
+### Stacked bar
+
+```{r}
+library(readxl)
+stacked_uni <- read_excel("/Users/josda508/Documents/Text mining/Avhandlingar/Project files/All full-text/Stylo/style_uni_stacked_polmed.xlsx", 
+    col_types = c("text", "text", "numeric"))
+```
+
+
+```{r}
+library(tidyverse)
+library(plyr)
+stacked_uni <- ddply(stacked_uni, .(Uni),
+                     transform, pos = cumsum(values) - (0.5 * values))
+
+
+stacked_uni %>%
+  ggplot(aes(y = values, x = Uni, fill = Style)) +
+  ylab("Share of corpus in percentage") +
+  xlab("University") +
+  geom_bar(stat="identity") +
+  scale_x_discrete(limits = c("Stockholm", "Umeå", "Gothenburg", "Uppsala", "Lund")) +
+  scale_fill_manual(values = c("mediumpurple1", "indianred3", "deepskyblue3", "goldenrod1","chartreuse4")) +
+  theme(legend.position="bottom", 
+        legend.direction="horizontal", 
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8)) +
+  theme_classic() +
+  geom_text(aes(label=values), position = position_stack(vjust = 0.5), color="white", size=3.5)
+```
+
